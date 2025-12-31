@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <title>La Puta 5.1</title>
+    <style>
+        :root {
+            --primary: #0A84FF;
+            --danger: #FF453A;
+            --purple: #BF5AF2;
+            --bg: #000000;
+            --card-bg: #1C1C1E;
+            --text: #FFFFFF;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
+        
+        body { background-color: var(--bg); color: var(--text); margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .hidden { display: none !important; }
+        
+        /* BOTONES */
+        .btn { padding: 16px; border-radius: 14px; border: none; font-size: 16px; font-weight: 700; width: 100%; cursor: pointer; margin-bottom: 8px; transition: transform 0.1s; }
+        .btn:active { transform: scale(0.97); opacity: 0.9; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-purple { background-color: var(--purple); color: white; }
+        .btn-ghost { background: #333; color: #ccc; }
+        
+        /* SETUP */
+        #setup-screen { flex: 1; display: flex; flex-direction: column; padding: 40px 20px; align-items: center; justify-content: center; }
+        h1 { font-size: 40px; margin-bottom: 10px; color: #FFD60A; text-transform: uppercase; letter-spacing: 2px; }
+        input { background: #1C1C1E; border: 1px solid #333; padding: 16px; border-radius: 12px; color: white; width: 100%; font-size: 18px; text-align: center; margin-bottom: 20px; outline: none; }
+        .chips-container { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 30px; width: 100%; max-height: 30vh; overflow-y: auto; }
+        .chip { background: #333; padding: 8px 14px; border-radius: 20px; font-size: 14px; display: flex; gap: 8px; align-items: center; }
+        
+        /* GAME UI */
+        #game-screen { flex: 1; display: flex; flex-direction: column; padding: 20px; padding-top: 50px; position: relative; }
+        
+        .header-row { display: flex; justify-content: space-between; align-items: center; width: 100%; position: absolute; top: 10px; left: 0; padding: 0 20px; z-index: 10; }
+        .reset-btn { background: #333; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: #aaa; cursor: pointer; }
+
+        .top-info { text-align: center; margin-bottom: 10px; margin-top: 20px; }
+        .turn-label { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .player-name { font-size: 32px; font-weight: 800; color: var(--primary); margin-top: 5px; }
+
+        /* CARTA */
+        .card-container { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; }
+        .card { 
+            width: 260px; height: 380px; 
+            background: white; border-radius: 24px; 
+            position: relative; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); 
+            display: flex; flex-direction: column; justify-content: space-between; padding: 20px;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .card.zoom-out { transform: scale(0.8); opacity: 0; } 
+        .card.zoom-in { transform: scale(1); opacity: 1; }
+
+        .card-back { background: linear-gradient(135deg, #111, #333); height: 100%; width: 100%; position: absolute; top:0; left:0; border-radius: 24px; border: 4px solid #555; display: flex; align-items: center; justify-content: center; z-index: 2; }
+        .card-content { color: black; height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+        
+        .corner { font-size: 32px; font-weight: bold; line-height: 1; display: flex; flex-direction: column; align-items: center; }
+        .corner.bottom { transform: rotate(180deg); }
+        .center-suit { font-size: 80px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        
+        .suit-oros { color: #D4AF37; } .suit-copas { color: #E02020; }
+        .suit-espadas { color: #007AFF; } .suit-bastos { color: #2E7D32; }
+
+        /* REGLAS */
+        .rule-box { background: #222; padding: 12px; border-radius: 16px; text-align: center; margin-bottom: 10px; min-height: 90px; display: flex; flex-direction: column; justify-content: center; border: 1px solid #333; }
+        .rule-title { font-size: 20px; font-weight: bold; color: white; margin-bottom: 5px; }
+        .rule-desc { font-size: 15px; color: #aaa; }
+
+        /* CONTROLES */
+        .controls-area { display: flex; gap: 8px; }
+
+        /* FLOTANTE */
+        #dedito-float {
+            position: fixed; bottom: 120px; right: 20px;
+            width: 65px; height: 65px; border-radius: 50%;
+            background: #FF9F0A; box-shadow: 0 4px 15px rgba(255, 159, 10, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 30px; z-index: 50; cursor: pointer; border: 3px solid white;
+        }
+
+        /* MODALES */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 100; display: flex; flex-direction: column; justify-content: center; padding: 20px; }
+        .list-scroll { max-height: 50vh; overflow-y: auto; width: 100%; margin: 20px 0; }
+        .modal-title { font-size: 24px; font-weight: bold; text-align: center; color: white; margin-bottom: 10px;}
+        .chain-text { font-size: 18px; text-align: center; color: #FF453A; line-height: 1.5; margin-bottom: 20px; }
+        
+        /* RESULTADOS TABLA */
+        .result-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; color: white; font-size: 18px; }
+        .drink-badge { background: #FF453A; padding: 2px 10px; border-radius: 10px; font-weight: bold; }
+        
+        /* LISTA PUTAS VISUAL */
+        .puta-card { background: #2C2C2E; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--purple); }
+        .puta-arrow { color: #888; font-weight:bold; margin: 0 8px; }
+        .puta-name { font-weight: bold; font-size: 17px; display: block; }
+        .sub-text { font-size: 12px; color: #777; margin-top: 4px; display: block;}
+
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h1>LA PUTA 5.1</h1>
+        <p style="color: #666; font-size: 14px;">Tus datos quedan guardados</p>
+        <input type="text" id="input-player" placeholder="Nombre jugador..." onkeypress="handleEnter(event)">
+        <button class="btn btn-primary" onclick="addPlayer()">AGREGAR JUGADOR</button>
+        <div class="chips-container" id="chips-area"></div>
+        <button class="btn btn-primary" style="background-color: #30D158; margin-top: auto;" onclick="startGame(true)">¡JUGAR / REINICIAR!</button>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        <div class="header-row">
+            <div style="font-weight:bold; color: #333;">V 5.1</div>
+            <div class="reset-btn" onclick="resetGame()">✕</div>
+        </div>
+
+        <div class="top-info">
+            <div class="turn-label">LE TOCA A</div>
+            <div class="player-name" id="current-player-name">...</div>
+        </div>
+
+        <div class="card-container" onclick="drawCard()">
+            <div class="card" id="card-element">
+                <div id="card-back-face" class="card-back">
+                    <span style="font-size:50px;">🍺</span>
+                    <span style="position:absolute; bottom: 20px; font-size: 14px; color: #888;">TOCÁ PARA SACAR</span>
+                </div>
+                <div id="card-content-face" class="card-content hidden"></div>
+            </div>
+        </div>
+
+        <div class="rule-box">
+            <div class="rule-title" id="rule-title">La Puta</div>
+            <div class="rule-desc" id="rule-desc">Tocá el mazo para empezar</div>
+        </div>
+
+        <div class="controls-area">
+            <button class="btn btn-purple" style="width: 40%;" onclick="openPutasModal()">👯‍♀️ VER PUTAS</button>
+            <button class="btn btn-danger" style="width: 60%;" onclick="openLoserModal()">😡 ¡PERDIÓ!</button>
+        </div>
+        
+        <div style="text-align: center; font-size: 12px; color: #555; margin-top: 5px;" id="deck-status"></div>
+    </div>
+
+    <div id="dedito-float" class="hidden" onclick="triggerDedito()">👆</div>
+
+    <div id="modal-select" class="modal-overlay hidden">
+        <div class="modal-title" id="modal-title">...</div>
+        <div class="list-scroll" id="modal-list"></div>
+        <button id="btn-cancel-modal" class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>
+
+    <div id="modal-result" class="modal-overlay hidden">
+        <div style="font-size: 50px; text-align: center;">🍻</div>
+        <div class="modal-title" id="res-title">CADENA DE TRAGOS</div>
+        <div id="chain-display" style="width: 100%; max-height: 60vh; overflow-y: auto;"></div>
+        <button class="btn btn-primary" style="margin-top: 20px;" onclick="document.getElementById('modal-result').classList.add('hidden')">LISTO, SEGUIMOS</button>
+    </div>
+
+    <script>
+        // --- DATOS ---
+        const suits = [{ i: '🟡', c: 'suit-oros' }, { i: '🍷', c: 'suit-copas' }, { i: '⚔️', c: 'suit-espadas' }, { i: '🌿', c: 'suit-bastos' }];
+        const reglas = {
+            1: { t: "TOMAS VOS", d: "Fondo blanco. Vos y tus putas toman." },
+            2: { t: "¿QUIÉN TOMA?", d: "Elegí a alguien para que tome." },
+            3: { t: "TOMAN TODOS", d: "¡Salud! Se suman los tragos por Putas." },
+            4: { t: "KIWI", d: "Memoria: '1 Kiwi', '1 Kiwi 2 Kiwis'..." },
+            5: { t: "LA PUTA", d: "Elegí a tu Puta. (Si vos tomás, ella toma)." },
+            6: { t: "LIMÓN", d: "Trabalenguas: '1 Limón, medio limón...'." },
+            7: { t: "BARQUITO", d: "Categorías sin repetir." },
+            8: { t: "PALITO", d: "Contar en romanos. (IV es 'Palito Ve')." },
+            9: { t: "1 AL 10", d: "El que pierde cambia número por palabra." },
+            10: { t: "DEDITO", d: "Guardate la carta. Usala cuando quieras." },
+            11: { t: "¿QUERÉS UN KI?", d: "Preguntas encadenadas." },
+            12: { t: "DESCANSO", d: "Nadie toma. Zafaste." }
+        };
+
+        // --- ESTADO ---
+        let players = [];
+        let deck = [];
+        let currentPlayerIdx = 0;
+        let turnGlobal = 0;
+        let putaMap = {}; 
+        let deditoState = { active: false, ownerIdx: -1, startTurn: 0 };
+        let isAnimating = false;
+
+        // --- INICIO Y PERSISTENCIA ---
+        window.onload = function() {
+            const savedPlayers = localStorage.getItem('laPutaPlayers');
+            if(savedPlayers) { 
+                players = JSON.parse(savedPlayers); 
+                renderChips(); 
+            }
+
+            // Chequear si hay un juego en curso
+            const savedMap = localStorage.getItem('laPutaMap');
+            if(savedMap && players.length > 0) {
+                // Hay datos guardados, restauramos
+                putaMap = JSON.parse(savedMap);
+                console.log("Juego restaurado");
+                
+                deck = []; for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s });
+                shuffleDeck();
+                
+                document.getElementById('setup-screen').classList.add('hidden');
+                document.getElementById('game-screen').classList.remove('hidden');
+                updateInfo();
+            }
+        };
+
+        function saveGameData() {
+            localStorage.setItem('laPutaPlayers', JSON.stringify(players));
+            localStorage.setItem('laPutaMap', JSON.stringify(putaMap));
+        }
+
+        function handleEnter(e) { if(e.key === 'Enter') addPlayer(); }
+
+        function addPlayer() {
+            const input = document.getElementById('input-player');
+            const name = input.value.trim().toUpperCase();
+            if(!name || players.includes(name)) return;
+            players.push(name);
+            saveGameData();
+            input.value = ''; renderChips(); input.focus();
+        }
+
+        function removePlayer(name) {
+            players = players.filter(p => p !== name);
+            saveGameData();
+            renderChips();
+        }
+
+        function renderChips() {
+            document.getElementById('chips-area').innerHTML = players.map(p => `<div class="chip" onclick="removePlayer('${p}')">${p} ✕</div>`).join('');
+        }
+
+        function startGame(isNew) {
+            if(players.length < 2) return alert("Cargá al menos 2 jugadores.");
+            
+            if(isNew) {
+                putaMap = {};
+                saveGameData(); 
+            }
+
+            deck = []; for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s });
+            shuffleDeck();
+            
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            
+            currentPlayerIdx = Math.floor(Math.random() * players.length);
+            updateInfo();
+        }
+
+        function resetGame() {
+            if(confirm("¿Terminar y empezar de cero? Se borrarán las Putas.")) {
+                putaMap = {};
+                saveGameData();
+                document.getElementById('game-screen').classList.add('hidden');
+                document.getElementById('setup-screen').classList.remove('hidden');
+            }
+        }
+
+        function shuffleDeck() {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        function updateInfo() {
+            document.getElementById('current-player-name').innerText = players[currentPlayerIdx];
+            document.getElementById('deck-status').innerText = `${deck.length} cartas restantes`;
+            if(deditoState.active && turnGlobal > deditoState.startTurn && currentPlayerIdx === deditoState.ownerIdx) {
+                deditoState.active = false;
+                document.getElementById('dedito-float').classList.add('hidden');
+                alert(`⏳ Se venció el Dedito de ${players[currentPlayerIdx]}`);
+            }
+        }
+
+        function drawCard() {
+            if(isAnimating) return;
+            if(deck.length === 0) { alert("¡Mazo nuevo!"); for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s }); shuffleDeck(); }
+
+            isAnimating = true;
+            const cardEl = document.getElementById('card-element');
+            const cardData = deck.pop();
+
+            cardEl.className = 'card zoom-out';
+            setTimeout(() => {
+                document.getElementById('card-back-face').classList.add('hidden');
+                const content = document.getElementById('card-content-face');
+                content.classList.remove('hidden');
+                content.className = `card-content ${cardData.s.c}`;
+                content.innerHTML = `
+                    <div class="corner"><span>${cardData.n}</span><span>${cardData.s.i}</span></div>
+                    <div class="center-suit">${cardData.n}</div>
+                    <div class="corner bottom"><span>${cardData.n}</span><span>${cardData.s.i}</span></div>
+                `;
+                document.getElementById('rule-title').innerText = `${cardData.n}: ${reglas[cardData.n].t}`;
+                document.getElementById('rule-desc').innerText = reglas[cardData.n].d;
+                cardEl.className = 'card zoom-in';
+
+                const currentPlayerName = players[currentPlayerIdx];
+
+                // --- LÓGICA DE CARTAS ---
+                if(cardData.n === 1) setTimeout(() => showChainResult(getChain(currentPlayerName), "¡TE TOCÓ A VOS!"), 600);
+                if(cardData.n === 3) setTimeout(() => calculateTomanTodos(), 600);
+                if(cardData.n === 5) setTimeout(() => openPutaSelector(currentPlayerName), 600);
+                if(cardData.n === 10) activateDedito(currentPlayerIdx);
+
+                passTurn();
+                setTimeout(() => { isAnimating = false; }, 300);
+            }, 200);
+        }
+
+        function passTurn() {
+            turnGlobal++;
+            currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
+            setTimeout(() => {
+                document.getElementById('current-player-name').innerText = "Sigue: " + players[currentPlayerIdx];
+                updateInfo();
+                if(deditoState.active) document.getElementById('dedito-float').classList.remove('hidden');
+                else document.getElementById('dedito-float').classList.add('hidden');
+            }, 500);
+        }
+
+        // --- LÓGICA GRAFO PUTAS ---
+        function getChain(victim) {
+            let chain = [victim];
+            let current = victim;
+            let visited = new Set([victim]);
+            while(putaMap[current]) {
+                let next = putaMap[current];
+                if(visited.has(next)) break;
+                chain.push(next);
+                visited.add(next);
+                current = next;
+            }
+            return chain;
+        }
+
+        function openPutasModal() {
+            const list = document.getElementById('modal-list');
+            document.getElementById('modal-title').innerText = "MAPA DE PUTAS";
+            document.getElementById('btn-cancel-modal').classList.remove('hidden');
+
+            const owners = Object.keys(putaMap);
+            if(owners.length === 0) {
+                list.innerHTML = "<div style='text-align:center; color:#888;'>Todavía no hay putas asignadas.</div>";
+            } else {
+                let html = "";
+                
+                // ORDENAR: Primero las cadenas más largas para que se vea A-B-C arriba y B-C abajo
+                owners.sort((a, b) => getChain(b).length - getChain(a).length);
+
+                owners.forEach(owner => {
+                    const chain = getChain(owner);
+                    // Visualmente: Fran - Cami - Lucas
+                    let visualChain = chain.join(' - ');
+                    
+                    html += `<div class="puta-card"><span class="puta-name">${visualChain}</span></div>`;
+                });
+                list.innerHTML = html;
+            }
+            document.getElementById('modal-select').classList.remove('hidden');
+        }
+
+        function calculateTomanTodos() {
+            let drinks = {};
+            players.forEach(p => drinks[p] = 0);
+            players.forEach(p => {
+                let chain = getChain(p);
+                chain.forEach(victim => drinks[victim]++);
+            });
+            let html = "";
+            let sorted = Object.keys(drinks).sort((a,b) => drinks[b] - drinks[a]);
+            sorted.forEach(p => {
+                html += `<div class="result-row"><span>${p}</span><span class="drink-badge">${drinks[p]} 🍺</span></div>`;
+            });
+            document.getElementById('res-title').innerText = "TOMAN TODOS (ACUMULADO)";
+            document.getElementById('chain-display').innerHTML = html;
+            document.getElementById('modal-result').classList.remove('hidden');
+        }
+
+        function showChainResult(chain, title) {
+            let html = "";
+            if(chain.length === 1) html = `<div class="chain-text" style="color:white; font-size:30px; font-weight:bold;">${chain[0]}</div>`;
+            else html = `<div class="chain-text"><span style="color:white; font-size:24px; font-weight:bold;">${chain[0]}</span><br><span style="font-size:14px; color:#aaa;">(Arrastra a sus putas)</span><br><br>👇<br>${chain.slice(1).map(n => `<b style="color:#FF453A">${n}</b>`).join('<br>')}</div>`;
+            document.getElementById('res-title').innerText = title;
+            document.getElementById('chain-display').innerHTML = html;
+            document.getElementById('modal-result').classList.remove('hidden');
+        }
+
+        function activateDedito(idx) { deditoState = { active: true, ownerIdx: idx, startTurn: turnGlobal }; }
+        function triggerDedito() {
+            deditoState.active = false;
+            document.getElementById('dedito-float').classList.add('hidden');
+            openLoserModal("👆 DEDITO: ¿Quién fue el último?");
+        }
+
+        function openPutaSelector(owner) {
+            const list = document.getElementById('modal-list');
+            document.getElementById('modal-title').innerText = `${owner}, elegí tu Puta:`;
+            document.getElementById('btn-cancel-modal').classList.add('hidden');
+            const candidates = players.filter(p => p !== owner);
+            list.innerHTML = candidates.map(p => `<button class="btn btn-primary" style="background:#333;" onclick="setPuta('${owner}', '${p}')">${p}</button>`).join('');
+            document.getElementById('modal-select').classList.remove('hidden');
+        }
+
+        function setPuta(owner, victim) {
+            putaMap[owner] = victim;
+            saveGameData(); // Guardar cambios
+            document.getElementById('modal-select').classList.add('hidden');
+            alert(`🔗 ${owner} eligió a ${victim}.`);
+        }
+
+        function openLoserModal(title = "😡 ¿Quién perdió?") {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('btn-cancel-modal').classList.remove('hidden');
+            const list = document.getElementById('modal-list');
+            list.innerHTML = players.map(p => `<button class="btn btn-danger" onclick="manualLoser('${p}')">${p}</button>`).join('');
+            document.getElementById('modal-select').classList.remove('hidden');
+        }
+
+        function manualLoser(loser) {
+            document.getElementById('modal-select').classList.add('hidden');
+            showChainResult(getChain(loser), "RESULTADO");
+        }
+
+        function closeModal() { document.getElementById('modal-select').classList.add('hidden'); }
+
+    </script>
+    <script>
+        // REGISTRO DEL SERVICE WORKER PARA OFFLINE
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registrado 😎', reg))
+                    .catch(err => console.log('Error al registrar SW 😢', err));
+            });
+        }
+    </script>
+</body>
+</html>
