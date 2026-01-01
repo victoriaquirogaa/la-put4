@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>La Puta 6.7</title>
+    <title>La Puta 6.8</title>
     <style>
         :root { --primary: #0A84FF; --danger: #FF453A; --purple: #BF5AF2; --bg: #000000; --card-bg: #1C1C1E; --text: #FFFFFF; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
@@ -57,8 +57,8 @@
 </head>
 <body>
     <div id="setup-screen">
-        <h1>LA PUTA 6.7</h1>
-        <p style="color: #666; font-size: 14px;">Rebelión Fix (Definitivo)</p>
+        <h1>LA PUTA 6.8</h1>
+        <p style="color: #666; font-size: 14px;">Multi-Puta FIX</p>
         <input type="text" id="input-player" placeholder="Nombre jugador..." onkeypress="handleEnter(event)">
         <button class="btn btn-primary" onclick="addPlayer()">AGREGAR JUGADOR</button>
         <div class="chips-container" id="chips-area"></div>
@@ -67,7 +67,7 @@
 
     <div id="game-screen" class="hidden">
         <div class="header-row">
-            <div style="font-weight:bold; color: #333;">V 6.7</div>
+            <div style="font-weight:bold; color: #333;">V 6.8</div>
             <div class="reset-btn" onclick="resetGame()">✕</div>
         </div>
         <div class="top-info">
@@ -136,6 +136,7 @@
                 try {
                     let tempMap = JSON.parse(savedMap);
                     let keys = Object.keys(tempMap);
+                    // Chequeo de seguridad de estructura
                     if(keys.length > 0 && !Array.isArray(tempMap[keys[0]])) { putaMap = {}; } else {
                         putaMap = tempMap;
                         deck = []; for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s });
@@ -258,23 +259,26 @@
         function openPutaSelector(owner) {
             const list = document.getElementById('modal-list'); document.getElementById('modal-title').innerText = `${owner}, elegí tu Puta:`; document.getElementById('btn-cancel-modal').classList.add('hidden');
             const myCurrentPutas = putaMap[owner] || [];
+            // LISTA DE CANDIDATOS: Todos los que NO soy yo y NO son ya mis putas
             const candidates = players.filter(p => p !== owner && !myCurrentPutas.includes(p));
+            
             if(candidates.length === 0) { list.innerHTML = "<div style='text-align:center; padding:20px;'>Ya tenés a todos de putas.</div>"; setTimeout(() => document.getElementById('modal-select').classList.add('hidden'), 2000); return; }
             list.innerHTML = candidates.map(p => `<button class="btn btn-primary" style="background:#333;" onclick="setPuta('${owner}', '${p}')">${p}</button>`).join(''); document.getElementById('modal-select').classList.remove('hidden');
         }
 
-        // --- LÓGICA CORREGIDA V6.7: REBELIÓN SEGURA ---
+        // --- LÓGICA V6.8: MULTI-PUTA SIMPLE ---
         function setPuta(owner, victim) {
+            // Asegurar que existan los arrays
             if(!putaMap[owner]) putaMap[owner] = [];
             if(!putaMap[victim]) putaMap[victim] = [];
 
-            // CASO 1: REBELIÓN DIRECTA (La víctima era mi jefe)
+            // 1. REBELIÓN: Si la víctima ya me tiene a mí de Puta (Victim -> Owner)
+            // Se debe ROMPER ese vínculo.
             if (putaMap[victim].includes(owner)) {
-                // Borrar a B de la lista de A. (A pierde a B).
+                // Borrar a Owner de la lista de Victim.
                 putaMap[victim] = putaMap[victim].filter(p => p !== owner);
                 
-                // NO agregar A a la lista de B (se anulan).
-                // NO tocar el resto de la lista de B (C sigue ahí).
+                // NO agregar Victim a Owner. Quedan libres.
                 
                 saveGameData();
                 document.getElementById('modal-select').classList.add('hidden');
@@ -282,14 +286,14 @@
                 return;
             }
 
-            // CASO 2: BUCLE INDIRECTO (Cadena larga)
+            // 2. CICLO INDIRECTO: Chequear con pathfinding para no romper el juego
             if (findPath(victim, owner)) {
-                document.getElementById('modal-select').classList.add('hidden');
-                alert("⛔️ Movimiento ilegal: Se formaría un bucle infinito en la cadena.");
-                return;
+                 document.getElementById('modal-select').classList.add('hidden');
+                 alert("⛔️ Movimiento ilegal: Se formaría un bucle infinito.");
+                 return;
             }
 
-            // CASO 3: TODO OK
+            // 3. AGREGADO NORMAL (Acá estaba el error antes, se usaba = en vez de push)
             putaMap[owner].push(victim);
             saveGameData();
             document.getElementById('modal-select').classList.add('hidden');
