@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>La Puta 6.8</title>
+    <title>La Puta 6.9</title>
     <style>
         :root { --primary: #0A84FF; --danger: #FF453A; --purple: #BF5AF2; --bg: #000000; --card-bg: #1C1C1E; --text: #FFFFFF; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
@@ -57,8 +57,8 @@
 </head>
 <body>
     <div id="setup-screen">
-        <h1>LA PUTA 6.8</h1>
-        <p style="color: #666; font-size: 14px;">Multi-Puta FIX</p>
+        <h1>LA PUTA 6.9</h1>
+        <p style="color: #666; font-size: 14px;">Blindada Anti-Bug</p>
         <input type="text" id="input-player" placeholder="Nombre jugador..." onkeypress="handleEnter(event)">
         <button class="btn btn-primary" onclick="addPlayer()">AGREGAR JUGADOR</button>
         <div class="chips-container" id="chips-area"></div>
@@ -67,7 +67,7 @@
 
     <div id="game-screen" class="hidden">
         <div class="header-row">
-            <div style="font-weight:bold; color: #333;">V 6.8</div>
+            <div style="font-weight:bold; color: #333;">V 6.9</div>
             <div class="reset-btn" onclick="resetGame()">✕</div>
         </div>
         <div class="top-info">
@@ -128,23 +128,29 @@
 
         let players = [], deck = [], currentPlayerIdx = 0, turnGlobal = 0, putaMap = {}, deditoState = { active: false, ownerIdx: -1, startTurn: 0 }, isAnimating = false;
 
+        // FUNCIÓN SANITIZADORA (Arregla datos viejos)
+        function sanitizePutaMap() {
+            Object.keys(putaMap).forEach(key => {
+                if (!Array.isArray(putaMap[key])) {
+                    // Si es texto viejo ("B"), lo convierte en lista (["B"])
+                    putaMap[key] = putaMap[key] ? [putaMap[key]] : [];
+                }
+            });
+        }
+
         window.onload = function() {
             const savedPlayers = localStorage.getItem('laPutaPlayers');
             if(savedPlayers) { players = JSON.parse(savedPlayers); renderChips(); }
             const savedMap = localStorage.getItem('laPutaMap');
             if(savedMap && players.length > 0) {
                 try {
-                    let tempMap = JSON.parse(savedMap);
-                    let keys = Object.keys(tempMap);
-                    // Chequeo de seguridad de estructura
-                    if(keys.length > 0 && !Array.isArray(tempMap[keys[0]])) { putaMap = {}; } else {
-                        putaMap = tempMap;
-                        deck = []; for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s });
-                        shuffleDeck();
-                        document.getElementById('setup-screen').classList.add('hidden');
-                        document.getElementById('game-screen').classList.remove('hidden');
-                        updateInfo();
-                    }
+                    putaMap = JSON.parse(savedMap);
+                    sanitizePutaMap(); // <--- Arreglar datos al cargar
+                    deck = []; for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s });
+                    shuffleDeck();
+                    document.getElementById('setup-screen').classList.add('hidden');
+                    document.getElementById('game-screen').classList.remove('hidden');
+                    updateInfo();
                 } catch(e) { putaMap = {}; }
             }
         };
@@ -163,7 +169,9 @@
         function removePlayer(name) {
             players = players.filter(p => p !== name);
             delete putaMap[name];
-            Object.keys(putaMap).forEach(key => { putaMap[key] = putaMap[key].filter(v => v !== name); });
+            Object.keys(putaMap).forEach(key => { 
+                if(Array.isArray(putaMap[key])) putaMap[key] = putaMap[key].filter(v => v !== name); 
+            });
             saveGameData(); renderChips();
         }
         function renderChips() { document.getElementById('chips-area').innerHTML = players.map(p => `<div class="chip" onclick="removePlayer('${p}')">${p} ✕</div>`).join(''); }
@@ -204,7 +212,6 @@
                 cardEl.className = 'card zoom-in';
                 const currentPlayerName = players[currentPlayerIdx];
                 
-                // LÓGICA DE CARTAS
                 if(cardData.n === 1) setTimeout(() => showChainResult(getGraphChain(currentPlayerName), "¡TE TOCÓ A VOS!"), 600);
                 if(cardData.n === 2) setTimeout(() => openLoserModal("🍺 CARTA 2: ELEGÍ QUIÉN TOMA"), 600);
                 if(cardData.n === 3) setTimeout(() => calculateTomanTodos(), 600);
@@ -225,17 +232,19 @@
             path.push(start); visited.add(start);
             if (start === target) return path;
             let myPutas = putaMap[start] || [];
+            if(!Array.isArray(myPutas)) return null; // Seguridad
             for (let next of myPutas) { if (!visited.has(next)) { let result = findPath(next, target, [...path], new Set(visited)); if (result) return result; } }
             return null;
         }
         function getGraphChain(loser) {
             let uniqueVictims = new Set(); let queue = [loser];
-            while(queue.length > 0) { let current = queue.shift(); if(!uniqueVictims.has(current)) { uniqueVictims.add(current); let myPutas = putaMap[current] || []; for(let p of myPutas) { queue.push(p); } } }
+            while(queue.length > 0) { let current = queue.shift(); if(!uniqueVictims.has(current)) { uniqueVictims.add(current); let myPutas = putaMap[current] || []; if(Array.isArray(myPutas)) { for(let p of myPutas) queue.push(p); } } }
             let result = Array.from(uniqueVictims); result = result.filter(x => x !== loser); result.unshift(loser); return result;
         }
         function openPutasModal() {
+            sanitizePutaMap();
             const list = document.getElementById('modal-list'); document.getElementById('modal-title').innerText = "MAPA DE PUTAS"; document.getElementById('btn-cancel-modal').classList.remove('hidden');
-            const owners = Object.keys(putaMap).filter(k => putaMap[k] && putaMap[k].length > 0);
+            const owners = Object.keys(putaMap).filter(k => Array.isArray(putaMap[k]) && putaMap[k].length > 0);
             if(owners.length === 0) { list.innerHTML = "<div style='text-align:center; color:#888;'>Nadie tiene putas todavía.</div>"; } else {
                 let html = ""; owners.sort((a, b) => putaMap[b].length - putaMap[a].length);
                 owners.forEach(owner => { let putas = putaMap[owner]; html += `<div class="puta-card"><span class="puta-name">${owner} <span style="color:#BF5AF2">tiene a:</span></span><div class="sub-putas">${putas.map(p => `• ${p}`).join('<br>')}</div></div>`; });
@@ -257,22 +266,21 @@
         function activateDedito(idx) { deditoState = { active: true, ownerIdx: idx, startTurn: turnGlobal }; }
         function triggerDedito() { deditoState.active = false; document.getElementById('dedito-float').classList.add('hidden'); openLoserModal("👆 DEDITO: ¿Quién fue el último?"); }
         function openPutaSelector(owner) {
+            sanitizePutaMap();
             const list = document.getElementById('modal-list'); document.getElementById('modal-title').innerText = `${owner}, elegí tu Puta:`; document.getElementById('btn-cancel-modal').classList.add('hidden');
             const myCurrentPutas = putaMap[owner] || [];
-            // LISTA DE CANDIDATOS: Todos los que NO soy yo y NO son ya mis putas
             const candidates = players.filter(p => p !== owner && !myCurrentPutas.includes(p));
-            
             if(candidates.length === 0) { list.innerHTML = "<div style='text-align:center; padding:20px;'>Ya tenés a todos de putas.</div>"; setTimeout(() => document.getElementById('modal-select').classList.add('hidden'), 2000); return; }
             list.innerHTML = candidates.map(p => `<button class="btn btn-primary" style="background:#333;" onclick="setPuta('${owner}', '${p}')">${p}</button>`).join(''); document.getElementById('modal-select').classList.remove('hidden');
         }
 
-        // --- LÓGICA V6.8: MULTI-PUTA SIMPLE ---
+        // --- LÓGICA V6.9: REBELIÓN SEGURA ---
         function setPuta(owner, victim) {
-            // Asegurar que existan los arrays
+            sanitizePutaMap();
             if(!putaMap[owner]) putaMap[owner] = [];
             if(!putaMap[victim]) putaMap[victim] = [];
 
-            // 1. REBELIÓN: Si la víctima ya me tiene a mí de Puta (Victim -> Owner)
+            // 1. REBELIÓN: Si la víctima ya me tiene a mí (Victim -> Owner)
             // Se debe ROMPER ese vínculo.
             if (putaMap[victim].includes(owner)) {
                 // Borrar a Owner de la lista de Victim.
@@ -286,14 +294,14 @@
                 return;
             }
 
-            // 2. CICLO INDIRECTO: Chequear con pathfinding para no romper el juego
+            // 2. CICLO INDIRECTO: Prevenir bucles infinitos
             if (findPath(victim, owner)) {
                  document.getElementById('modal-select').classList.add('hidden');
-                 alert("⛔️ Movimiento ilegal: Se formaría un bucle infinito.");
+                 alert("⛔️ Movimiento ilegal: Se formaría un bucle infinito en la cadena.");
                  return;
             }
 
-            // 3. AGREGADO NORMAL (Acá estaba el error antes, se usaba = en vez de push)
+            // 3. AGREGADO NORMAL (Ahora sí, blindado)
             putaMap[owner].push(victim);
             saveGameData();
             document.getElementById('modal-select').classList.add('hidden');
