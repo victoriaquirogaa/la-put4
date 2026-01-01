@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>La Puta 6.5</title>
+    <title>La Puta 6.6</title>
     <style>
         :root { --primary: #0A84FF; --danger: #FF453A; --purple: #BF5AF2; --bg: #000000; --card-bg: #1C1C1E; --text: #FFFFFF; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
@@ -57,8 +57,8 @@
 </head>
 <body>
     <div id="setup-screen">
-        <h1>LA PUTA 6.5</h1>
-        <p style="color: #666; font-size: 14px;">Multi-Puta & Rompe-Círculos</p>
+        <h1>LA PUTA 6.6</h1>
+        <p style="color: #666; font-size: 14px;">Logic Fix: Rebelión</p>
         <input type="text" id="input-player" placeholder="Nombre jugador..." onkeypress="handleEnter(event)">
         <button class="btn btn-primary" onclick="addPlayer()">AGREGAR JUGADOR</button>
         <div class="chips-container" id="chips-area"></div>
@@ -67,7 +67,7 @@
 
     <div id="game-screen" class="hidden">
         <div class="header-row">
-            <div style="font-weight:bold; color: #333;">V 6.5</div>
+            <div style="font-weight:bold; color: #333;">V 6.6</div>
             <div class="reset-btn" onclick="resetGame()">✕</div>
         </div>
         <div class="top-info">
@@ -116,7 +116,7 @@
             2: { t: "¿QUIÉN TOMA?", d: "Elegí a alguien para que tome." },
             3: { t: "TOMAN TODOS", d: "¡Salud! Se suman los tragos por Putas." },
             4: { t: "KIWI", d: "Memoria: '1 Kiwi', '1 Kiwi 2 Kiwis'..." },
-            5: { t: "LA PUTA", d: "Elegí a tu Puta. (Acumulable)." },
+            5: { t: "LA PUTA", d: "Elegí a tu Puta. (Acumulable. Círculo rompe)." },
             6: { t: "LIMÓN", d: "Trabalenguas: '1 Limón, medio limón...'." },
             7: { t: "BARQUITO", d: "Categorías sin repetir." },
             8: { t: "PALITO", d: "Contar en romanos. (IV es 'Palito Ve')." },
@@ -203,9 +203,9 @@
                 cardEl.className = 'card zoom-in';
                 const currentPlayerName = players[currentPlayerIdx];
                 
-                // --- LÓGICA DE CARTAS (Acá está el 2 corregido) ---
+                // LÓGICA DE CARTAS
                 if(cardData.n === 1) setTimeout(() => showChainResult(getGraphChain(currentPlayerName), "¡TE TOCÓ A VOS!"), 600);
-                if(cardData.n === 2) setTimeout(() => openLoserModal("👉 ELEGÍ QUIÉN TOMA"), 600); // <-- ACÁ ESTÁ EL 2
+                if(cardData.n === 2) setTimeout(() => openLoserModal("🍺 CARTA 2: ELEGÍ QUIÉN TOMA"), 600); // <-- ACÁ ESTÁ EL 2
                 if(cardData.n === 3) setTimeout(() => calculateTomanTodos(), 600);
                 if(cardData.n === 5) setTimeout(() => openPutaSelector(currentPlayerName), 600);
                 if(cardData.n === 10) activateDedito(currentPlayerIdx);
@@ -258,38 +258,33 @@
         function openPutaSelector(owner) {
             const list = document.getElementById('modal-list'); document.getElementById('modal-title').innerText = `${owner}, elegí tu Puta:`; document.getElementById('btn-cancel-modal').classList.add('hidden');
             const myCurrentPutas = putaMap[owner] || [];
+            // Filtramos candidatos: Todos los que NO son yo y NO son mis putas actuales.
             const candidates = players.filter(p => p !== owner && !myCurrentPutas.includes(p));
             if(candidates.length === 0) { list.innerHTML = "<div style='text-align:center; padding:20px;'>Ya tenés a todos de putas.</div>"; setTimeout(() => document.getElementById('modal-select').classList.add('hidden'), 2000); return; }
             list.innerHTML = candidates.map(p => `<button class="btn btn-primary" style="background:#333;" onclick="setPuta('${owner}', '${p}')">${p}</button>`).join(''); document.getElementById('modal-select').classList.remove('hidden');
         }
 
-        // --- LÓGICA DESTRUCCIÓN DE CÍRCULO ---
+        // --- LÓGICA DESTRUCCIÓN DE CÍRCULO DIRECTO (REBELIÓN) ---
         function setPuta(owner, victim) {
             if(!putaMap[owner]) putaMap[owner] = [];
 
-            // Buscamos si la VICTIMA ya es dueña del OWNER (ciclo A->B, B elige A)
-            // findPath(victim, owner) nos da [Victim... Owner] (Ej: A, B)
-            let cyclePath = findPath(victim, owner); 
-            
-            if (cyclePath) {
-                // Existe ciclo. Debemos ROMPER el lazo existente A->B.
-                // cyclePath[0] es A, cyclePath[1] es B.
-                // Borramos B de la lista de A.
-                // Y NO agregamos A a la lista de B.
-                
-                for(let i=0; i < cyclePath.length - 1; i++) {
-                    let from = cyclePath[i];
-                    let to = cyclePath[i+1];
-                    // Remover relación existente
-                    if(putaMap[from]) {
-                        putaMap[from] = putaMap[from].filter(x => x !== to);
-                    }
-                }
+            // 1. CHEQUEO DIRECTO: ¿La víctima me tiene de puta a MÍ? (A->B y B elige A)
+            if (putaMap[victim] && putaMap[victim].includes(owner)) {
+                // Rebelión exitosa: Borrarme de la lista de mi dueño.
+                putaMap[victim] = putaMap[victim].filter(p => p !== owner);
                 
                 document.getElementById('modal-select').classList.add('hidden');
-                alert(`⚔️ ¡ANULADOS!\n\n${owner} intentó agarrar a ${victim}, pero ya era su puta.\n\n💥 El vínculo se rompió. Ahora son libres el uno del otro.\n(Las otras putas se mantienen).`);
-            } else {
-                // Agregar normal
+                alert(`⚔️ ¡REBELIÓN!\n\n${victim} era tu dueño, pero al elegirlo, rompiste el vínculo.\n\n💥 Ahora son libres el uno del otro.\n(Los otros vínculos no se tocan).`);
+            } 
+            // 2. CHEQUEO INDIRECTO (Bucle largo): Evitar que se rompa todo el grafo
+            else if (findPath(victim, owner)) {
+                // Si hay un bucle indirecto (A->C->B y B elige A), lo bloqueamos por seguridad
+                document.getElementById('modal-select').classList.add('hidden');
+                alert("⛔️ No podés elegirlo: se formaría un bucle infinito en la cadena de mando.");
+                return;
+            }
+            // 3. TODO OK
+            else {
                 putaMap[owner].push(victim);
                 document.getElementById('modal-select').classList.add('hidden');
                 alert(`🔗 ${owner} sumó a ${victim} a su lista.`);
