@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>La Puta 7.0</title>
+    <title>La Puta 7.1</title>
     <style>
         :root { --primary: #0A84FF; --danger: #FF453A; --purple: #BF5AF2; --bg: #000000; --card-bg: #1C1C1E; --text: #FFFFFF; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
@@ -53,21 +53,23 @@
         .puta-card { background: #2C2C2E; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--purple); }
         .puta-name { font-weight: bold; font-size: 17px; display: block; margin-bottom: 5px; }
         .sub-putas { font-size: 14px; color: #aaa; padding-left: 10px; }
+        #version-check { text-align: center; font-size: 10px; color: #444; margin-top: 10px; font-family: monospace; }
     </style>
 </head>
 <body>
     <div id="setup-screen">
-        <h1>LA PUTA 7.0</h1>
-        <p style="color: #666; font-size: 14px;">DB Nueva (Limpia)</p>
+        <h1>LA PUTA 7.1</h1>
+        <p style="color: #666; font-size: 14px;">Corrección Caché</p>
         <input type="text" id="input-player" placeholder="Nombre jugador..." onkeypress="handleEnter(event)">
         <button class="btn btn-primary" onclick="addPlayer()">AGREGAR JUGADOR</button>
         <div class="chips-container" id="chips-area"></div>
         <button class="btn btn-primary" style="background-color: #30D158; margin-top: auto;" onclick="startGame(true)">¡JUGAR / REINICIAR!</button>
+        <div id="version-check">VERSIÓN: 7.1 (ACTIVA)</div>
     </div>
 
     <div id="game-screen" class="hidden">
         <div class="header-row">
-            <div style="font-weight:bold; color: #333;">V 7.0</div>
+            <div style="font-weight:bold; color: #333;">V 7.1</div>
             <div class="reset-btn" onclick="resetGame()">✕</div>
         </div>
         <div class="top-info">
@@ -95,13 +97,11 @@
     </div>
 
     <div id="dedito-float" class="hidden" onclick="triggerDedito()">👆</div>
-
     <div id="modal-select" class="modal-overlay hidden">
         <div class="modal-title" id="modal-title">...</div>
         <div class="list-scroll" id="modal-list"></div>
         <button id="btn-cancel-modal" class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
     </div>
-
     <div id="modal-result" class="modal-overlay hidden">
         <div style="font-size: 50px; text-align: center;">🍻</div>
         <div class="modal-title" id="res-title">CADENA DE TRAGOS</div>
@@ -110,6 +110,9 @@
     </div>
 
     <script>
+        // CONFIGURACIÓN
+        const DB_KEY_PLAYERS = 'laPutaPlayers_v71';
+        const DB_KEY_MAP = 'laPutaMap_v71';
         const suits = [{ i: '🟡', c: 'suit-oros' }, { i: '🍷', c: 'suit-copas' }, { i: '⚔️', c: 'suit-espadas' }, { i: '🌿', c: 'suit-bastos' }];
         const reglas = {
             1: { t: "TOMAS VOS", d: "Fondo blanco. Vos y tus putas toman." },
@@ -126,13 +129,21 @@
             12: { t: "DESCANSO", d: "Nadie toma. Zafaste." }
         };
 
-        // LLAVES NUEVAS DE MEMORIA PARA LIMPIAR ERRORES VIEJOS
-        const DB_KEY_PLAYERS = 'laPutaPlayers_v7';
-        const DB_KEY_MAP = 'laPutaMap_v7';
-
+        // ESTADO
         let players = [], deck = [], currentPlayerIdx = 0, turnGlobal = 0, putaMap = {}, deditoState = { active: false, ownerIdx: -1, startTurn: 0 }, isAnimating = false;
 
+        // INICIALIZACIÓN
         window.onload = function() {
+            // FORZAR LIMPIEZA DE CACHÉ DEL SERVICE WORKER
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.unregister();
+                        console.log("Service Worker eliminado para forzar actualización.");
+                    }
+                });
+            }
+
             const savedPlayers = localStorage.getItem(DB_KEY_PLAYERS);
             if(savedPlayers) { players = JSON.parse(savedPlayers); renderChips(); }
             
@@ -140,6 +151,9 @@
             if(savedMap && players.length > 0) {
                 try {
                     putaMap = JSON.parse(savedMap);
+                    // Sanitización forzosa al cargar
+                    Object.keys(putaMap).forEach(k => { if(!Array.isArray(putaMap[k])) putaMap[k] = []; });
+                    
                     deck = []; for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s });
                     shuffleDeck();
                     document.getElementById('setup-screen').classList.add('hidden');
@@ -155,34 +169,29 @@
         }
         
         function handleEnter(e) { if(e.key === 'Enter') addPlayer(); }
-        
         function addPlayer() {
             const input = document.getElementById('input-player');
             const name = input.value.trim().toUpperCase();
             if(!name || players.includes(name)) return;
             players.push(name);
-            if(!putaMap[name]) putaMap[name] = []; // SIEMPRE ARRAY
+            if(!putaMap[name]) putaMap[name] = [];
             saveGameData();
             input.value = ''; renderChips(); input.focus();
         }
-        
         function removePlayer(name) {
             players = players.filter(p => p !== name);
             delete putaMap[name];
-            // Limpiar referencias en otros arrays
             Object.keys(putaMap).forEach(key => { 
                 if(Array.isArray(putaMap[key])) putaMap[key] = putaMap[key].filter(v => v !== name); 
             });
             saveGameData(); renderChips();
         }
-        
         function renderChips() { document.getElementById('chips-area').innerHTML = players.map(p => `<div class="chip" onclick="removePlayer('${p}')">${p} ✕</div>`).join(''); }
-        
         function startGame(isNew) {
             if(players.length < 2) return alert("Cargá al menos 2 jugadores.");
             if(isNew) { 
                 putaMap = {}; 
-                players.forEach(p => putaMap[p] = []); // INICIALIZAR COMO ARRAY VACÍO
+                players.forEach(p => putaMap[p] = []);
                 saveGameData(); 
             }
             deck = []; for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s });
@@ -192,19 +201,16 @@
             currentPlayerIdx = Math.floor(Math.random() * players.length);
             updateInfo();
         }
-        
         function resetGame() { 
-            if(confirm("¿Empezar de cero? Se borran las relaciones.")) { 
+            if(confirm("¿Empezar de cero?")) { 
                 putaMap = {}; 
-                players.forEach(p => putaMap[p] = []); // Asegurar arrays
+                players.forEach(p => putaMap[p] = []);
                 saveGameData(); 
                 document.getElementById('game-screen').classList.add('hidden'); 
                 document.getElementById('setup-screen').classList.remove('hidden'); 
             } 
         }
-        
         function shuffleDeck() { for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; } }
-        
         function updateInfo() {
             document.getElementById('current-player-name').innerText = players[currentPlayerIdx];
             document.getElementById('deck-status').innerText = `${deck.length} cartas restantes`;
@@ -240,7 +246,6 @@
                 passTurn(); setTimeout(() => { isAnimating = false; }, 300);
             }, 200);
         }
-        
         function passTurn() {
             turnGlobal++; currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
             setTimeout(() => {
@@ -248,8 +253,8 @@
                 if(deditoState.active) document.getElementById('dedito-float').classList.remove('hidden'); else document.getElementById('dedito-float').classList.add('hidden');
             }, 500);
         }
-
-        // FIND PATH (Busca bucles indirectos A->B->C->A)
+        
+        // --- LÓGICA GRAFO ---
         function findPath(start, target, path = [], visited = new Set()) {
             path.push(start); visited.add(start);
             if (start === target) return path;
@@ -258,14 +263,11 @@
             for (let next of myPutas) { if (!visited.has(next)) { let result = findPath(next, target, [...path], new Set(visited)); if (result) return result; } }
             return null;
         }
-
-        // CALCULADORA DE CADENA (Para ver quien toma)
         function getGraphChain(loser) {
             let uniqueVictims = new Set(); let queue = [loser];
             while(queue.length > 0) { let current = queue.shift(); if(!uniqueVictims.has(current)) { uniqueVictims.add(current); let myPutas = putaMap[current] || []; if(Array.isArray(myPutas)) { for(let p of myPutas) queue.push(p); } } }
             let result = Array.from(uniqueVictims); result = result.filter(x => x !== loser); result.unshift(loser); return result;
         }
-
         function openPutasModal() {
             const list = document.getElementById('modal-list'); document.getElementById('modal-title').innerText = "MAPA DE PUTAS"; document.getElementById('btn-cancel-modal').classList.remove('hidden');
             const owners = Object.keys(putaMap).filter(k => Array.isArray(putaMap[k]) && putaMap[k].length > 0);
@@ -276,7 +278,6 @@
             }
             document.getElementById('modal-select').classList.remove('hidden');
         }
-
         function calculateTomanTodos() {
             let drinks = {}; players.forEach(p => drinks[p] = 0);
             players.forEach(p => { let chain = getGraphChain(p); chain.forEach(victim => drinks[victim]++); });
@@ -284,78 +285,62 @@
             sorted.forEach(p => { html += `<div class="result-row"><span>${p}</span><span class="drink-badge">${drinks[p]} 🍺</span></div>`; });
             document.getElementById('res-title').innerText = "TOMAN TODOS (ACUMULADO)"; document.getElementById('chain-display').innerHTML = html; document.getElementById('modal-result').classList.remove('hidden');
         }
-        
         function showChainResult(chain, title) {
             let html = ""; if(chain.length === 1) html = `<div class="chain-text" style="color:white; font-size:30px; font-weight:bold;">${chain[0]}</div>`; else { let loser = chain[0]; let others = chain.slice(1); html = `<div class="chain-text"><span style="color:white; font-size:24px; font-weight:bold;">${loser}</span><br><span style="font-size:14px; color:#aaa;">(Arrastra a sus putas)</span><br><br>👇<br>${others.map(n => `<b style="color:#FF453A">${n}</b>`).join('<br>')}</div>`; }
             document.getElementById('res-title').innerText = title; document.getElementById('chain-display').innerHTML = html; document.getElementById('modal-result').classList.remove('hidden');
         }
-        
         function activateDedito(idx) { deditoState = { active: true, ownerIdx: idx, startTurn: turnGlobal }; }
         function triggerDedito() { deditoState.active = false; document.getElementById('dedito-float').classList.add('hidden'); openLoserModal("👆 DEDITO: ¿Quién fue el último?"); }
         
         function openPutaSelector(owner) {
             const list = document.getElementById('modal-list'); document.getElementById('modal-title').innerText = `${owner}, elegí tu Puta:`; document.getElementById('btn-cancel-modal').classList.add('hidden');
             
-            // Seguridad: Asegurar que sea array
+            // Garantizar array
             if (!Array.isArray(putaMap[owner])) putaMap[owner] = [];
 
             const myCurrentPutas = putaMap[owner];
             
-            // CANDIDATOS: No soy yo y No es ya mi puta
+            // FILTRO ESTRICTO: Solo mostrar jugadores que NO son yo y que NO están en mi lista
             const candidates = players.filter(p => p !== owner && !myCurrentPutas.includes(p));
             
             if(candidates.length === 0) { list.innerHTML = "<div style='text-align:center; padding:20px;'>Ya tenés a todos de putas.</div>"; setTimeout(() => document.getElementById('modal-select').classList.add('hidden'), 2000); return; }
             list.innerHTML = candidates.map(p => `<button class="btn btn-primary" style="background:#333;" onclick="setPuta('${owner}', '${p}')">${p}</button>`).join(''); document.getElementById('modal-select').classList.remove('hidden');
         }
 
-        // --- LÓGICA V7.0: ESTRUCTURA SEGURA ---
+        // --- LÓGICA MULTI-PUTA V7.1 ---
         function setPuta(owner, victim) {
-            // Asegurar arrays siempre
             if(!Array.isArray(putaMap[owner])) putaMap[owner] = [];
             if(!Array.isArray(putaMap[victim])) putaMap[victim] = [];
 
-            // 1. REBELIÓN DIRECTA (La víctima era mi jefe)
-            // A tiene B. B elige A.
+            // 1. REBELIÓN: Si B me tiene de puta (B->A) y A elige a B.
+            // Rompemos B->A.
             if (putaMap[victim].includes(owner)) {
-                // Borrar A de la lista de B
                 putaMap[victim] = putaMap[victim].filter(p => p !== owner);
-                // NO agrego B a la lista de A (anulados)
-                
                 saveGameData();
                 document.getElementById('modal-select').classList.add('hidden');
                 alert(`⚔️ ¡REBELIÓN!\n\n${victim} era tu dueño. Al elegirlo, rompiste el vínculo.\n\n💥 Ahora son libres el uno del otro.`);
                 return;
             }
 
-            // 2. BUCLE INDIRECTO (A->B->C->A)
+            // 2. EVITAR BUCLES INDIRECTOS
             if (findPath(victim, owner)) {
                  document.getElementById('modal-select').classList.add('hidden');
-                 alert("⛔️ Movimiento ilegal: Se formaría un bucle infinito.");
+                 alert("⛔️ Movimiento ilegal: Bucle detectado.");
                  return;
             }
 
-            // 3. AGREGADO EXITOSO
+            // 3. AGREGAR PUTA (PUSH)
             putaMap[owner].push(victim);
             saveGameData();
             document.getElementById('modal-select').classList.add('hidden');
             
-            // FEEDBACK VISUAL
-            let listaActual = putaMap[owner].join(', ');
-            alert(`🔗 ${owner} sumó a ${victim} a su lista.\n\nAhora sus putas son:\n${listaActual}`);
+            // Feedback con lista completa
+            alert(`🔗 ¡AGREGADA!\n\n${owner} ahora tiene de putas a:\n${putaMap[owner].join(', ')}`);
         }
 
         function openLoserModal(title = "😡 ¿Quién perdió?") { document.getElementById('modal-title').innerText = title; document.getElementById('btn-cancel-modal').classList.remove('hidden'); const list = document.getElementById('modal-list'); list.innerHTML = players.map(p => `<button class="btn btn-danger" onclick="manualLoser('${p}')">${p}</button>`).join(''); document.getElementById('modal-select').classList.remove('hidden'); }
         function manualLoser(loser) { document.getElementById('modal-select').classList.add('hidden'); showChainResult(getGraphChain(loser), "RESULTADO"); }
         function closeModal() { document.getElementById('modal-select').classList.add('hidden'); }
-
-        // --- REGISTRO SW ---
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registrado 😎', reg))
-                    .catch(err => console.log('Error al registrar SW 😢', err));
-            });
-        }
     </script>
 </body>
 </html>
