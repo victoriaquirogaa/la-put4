@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>La Puta 6.2</title>
+    <title>La Puta 6.4</title>
     <style>
         :root { --primary: #0A84FF; --danger: #FF453A; --purple: #BF5AF2; --bg: #000000; --card-bg: #1C1C1E; --text: #FFFFFF; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
@@ -57,8 +57,8 @@
 </head>
 <body>
     <div id="setup-screen">
-        <h1>LA PUTA 6.2</h1>
-        <p style="color: #666; font-size: 14px;">Multi-Puta & Rompe-Círculos</p>
+        <h1>LA PUTA 6.4</h1>
+        <p style="color: #666; font-size: 14px;">Rompe-Círculos Selectivo</p>
         <input type="text" id="input-player" placeholder="Nombre jugador..." onkeypress="handleEnter(event)">
         <button class="btn btn-primary" onclick="addPlayer()">AGREGAR JUGADOR</button>
         <div class="chips-container" id="chips-area"></div>
@@ -67,7 +67,7 @@
 
     <div id="game-screen" class="hidden">
         <div class="header-row">
-            <div style="font-weight:bold; color: #333;">V 6.2</div>
+            <div style="font-weight:bold; color: #333;">V 6.4</div>
             <div class="reset-btn" onclick="resetGame()">✕</div>
         </div>
         <div class="top-info">
@@ -116,7 +116,7 @@
             2: { t: "¿QUIÉN TOMA?", d: "Elegí a alguien para que tome." },
             3: { t: "TOMAN TODOS", d: "¡Salud! Se suman los tragos por Putas." },
             4: { t: "KIWI", d: "Memoria: '1 Kiwi', '1 Kiwi 2 Kiwis'..." },
-            5: { t: "LA PUTA", d: "Elegí a tu Puta. (Acumulable. Círculo rompe)." },
+            5: { t: "LA PUTA", d: "Elegí a tu Puta. (Acumulable)." },
             6: { t: "LIMÓN", d: "Trabalenguas: '1 Limón, medio limón...'." },
             7: { t: "BARQUITO", d: "Categorías sin repetir." },
             8: { t: "PALITO", d: "Contar en romanos. (IV es 'Palito Ve')." },
@@ -262,15 +262,37 @@
             if(candidates.length === 0) { list.innerHTML = "<div style='text-align:center; padding:20px;'>Ya tenés a todos de putas.</div>"; setTimeout(() => document.getElementById('modal-select').classList.add('hidden'), 2000); return; }
             list.innerHTML = candidates.map(p => `<button class="btn btn-primary" style="background:#333;" onclick="setPuta('${owner}', '${p}')">${p}</button>`).join(''); document.getElementById('modal-select').classList.remove('hidden');
         }
+
+        // --- LÓGICA DESTRUCCIÓN MUTUA ---
         function setPuta(owner, victim) {
             if(!putaMap[owner]) putaMap[owner] = [];
+
+            // Buscamos si la VICTIMA ya es dueña del OWNER (ciclo)
             let cyclePath = findPath(victim, owner); 
+            
             if (cyclePath) {
-                for(let i=0; i < cyclePath.length - 1; i++) { let from = cyclePath[i]; let to = cyclePath[i+1]; if(putaMap[from]) { putaMap[from] = putaMap[from].filter(x => x !== to); } }
-                document.getElementById('modal-select').classList.add('hidden'); alert(`♻️ ¡CÍRCULO FORMADO! Se anularon las relaciones entre ${cyclePath.join(' y ')}. Quedaron libres.`);
-            } else { putaMap[owner].push(victim); document.getElementById('modal-select').classList.add('hidden'); alert(`🔗 ${owner} sumó a ${victim} a su lista.`); }
+                // Hay conflicto. Rompemos la cadena existente.
+                // cyclePath es [Victim, ..., Owner]
+                for(let i=0; i < cyclePath.length - 1; i++) {
+                    let from = cyclePath[i];
+                    let to = cyclePath[i+1];
+                    // Borramos la relación from->to
+                    if(putaMap[from]) {
+                        putaMap[from] = putaMap[from].filter(x => x !== to);
+                    }
+                }
+                
+                document.getElementById('modal-select').classList.add('hidden');
+                alert(`⚔️ ¡CHOQUE DE PUTAS!\n\n${owner} intentó agarrar a ${victim}, pero ya estaban conectados.\n\n💥 Se rompió el vínculo entre ellos.\n(El resto de las putas, como C, siguen igual).`);
+            } else {
+                // Agregar normal
+                putaMap[owner].push(victim);
+                document.getElementById('modal-select').classList.add('hidden');
+                alert(`🔗 ${owner} sumó a ${victim} a su lista.`);
+            }
             saveGameData(); 
         }
+
         function openLoserModal(title = "😡 ¿Quién perdió?") { document.getElementById('modal-title').innerText = title; document.getElementById('btn-cancel-modal').classList.remove('hidden'); const list = document.getElementById('modal-list'); list.innerHTML = players.map(p => `<button class="btn btn-danger" onclick="manualLoser('${p}')">${p}</button>`).join(''); document.getElementById('modal-select').classList.remove('hidden'); }
         function manualLoser(loser) { document.getElementById('modal-select').classList.add('hidden'); showChainResult(getGraphChain(loser), "RESULTADO"); }
         function closeModal() { document.getElementById('modal-select').classList.add('hidden'); }
