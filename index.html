@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>La Puta 8.0</title>
+    <title>La Puta 8.1</title>
     <style>
         :root { --primary: #0A84FF; --danger: #FF453A; --purple: #BF5AF2; --bg: #000000; --card-bg: #1C1C1E; --text: #FFFFFF; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
@@ -58,18 +58,18 @@
 </head>
 <body>
     <div id="setup-screen">
-        <h1>LA PUTA 8.0</h1>
-        <p style="color: #666; font-size: 14px;">Listas Limpias</p>
+        <h1>LA PUTA 8.1</h1>
+        <p style="color: #666; font-size: 14px;">Turnos Fix</p>
         <input type="text" id="input-player" placeholder="Nombre jugador..." onkeypress="handleEnter(event)">
         <button class="btn btn-primary" onclick="addPlayer()">AGREGAR JUGADOR</button>
         <div class="chips-container" id="chips-area"></div>
         <button class="btn btn-primary" style="background-color: #30D158; margin-top: auto;" onclick="startGame(true)">¡JUGAR / REINICIAR!</button>
-        <div id="version-check">VERSIÓN: 8.0 (DB NUEVA)</div>
+        <div id="version-check">VERSIÓN: 8.1 (TURNOS MANUALES)</div>
     </div>
 
     <div id="game-screen" class="hidden">
         <div class="header-row">
-            <div style="font-weight:bold; color: #333;">V 8.0</div>
+            <div style="font-weight:bold; color: #333;">V 8.1</div>
             <div class="reset-btn" onclick="resetGame()">✕</div>
         </div>
         <div class="top-info">
@@ -100,19 +100,19 @@
     <div id="modal-select" class="modal-overlay hidden">
         <div class="modal-title" id="modal-title">...</div>
         <div class="list-scroll" id="modal-list"></div>
-        <button id="btn-cancel-modal" class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button id="btn-cancel-modal" class="btn btn-ghost" onclick="closeModal(true)">Cancelar y Pasar</button>
     </div>
     <div id="modal-result" class="modal-overlay hidden">
         <div style="font-size: 50px; text-align: center;">🍻</div>
         <div class="modal-title" id="res-title">CADENA DE TRAGOS</div>
         <div id="chain-display" style="width: 100%; max-height: 60vh; overflow-y: auto;"></div>
-        <button class="btn btn-primary" style="margin-top: 20px;" onclick="document.getElementById('modal-result').classList.add('hidden')">LISTO, SEGUIMOS</button>
+        <button class="btn btn-primary" style="margin-top: 20px;" onclick="closeResultModal()">LISTO, SEGUIMOS</button>
     </div>
 
     <script>
-        // --- BASE DE DATOS NUEVA (LIMPIA) ---
-        const DB_KEY_PLAYERS = 'laPutaPlayers_v8';
-        const DB_KEY_MAP = 'laPutaMap_v8';
+        // --- BASE DE DATOS ---
+        const DB_KEY_PLAYERS = 'laPutaPlayers_v81';
+        const DB_KEY_MAP = 'laPutaMap_v81';
 
         const suits = [{ i: '🟡', c: 'suit-oros' }, { i: '🍷', c: 'suit-copas' }, { i: '⚔️', c: 'suit-espadas' }, { i: '🌿', c: 'suit-bastos' }];
         const reglas = {
@@ -134,10 +134,7 @@
 
         // INICIALIZACIÓN
         window.onload = function() {
-            // Limpieza forzosa de Service Worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(regs => { for(let r of regs) r.unregister(); });
-            }
+            if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(regs => { for(let r of regs) r.unregister(); });
 
             const savedPlayers = localStorage.getItem(DB_KEY_PLAYERS);
             if(savedPlayers) { players = JSON.parse(savedPlayers); renderChips(); }
@@ -145,14 +142,9 @@
             const savedMap = localStorage.getItem(DB_KEY_MAP);
             if(savedMap && players.length > 0) {
                 try { putaMap = JSON.parse(savedMap); } catch(e) { putaMap = {}; }
-            } else {
-                putaMap = {};
-            }
+            } else { putaMap = {}; }
             
-            // GARANTIZAR QUE TODOS TENGAN SU LISTA (ARRAY)
-            players.forEach(p => {
-                if (!Array.isArray(putaMap[p])) putaMap[p] = [];
-            });
+            players.forEach(p => { if (!Array.isArray(putaMap[p])) putaMap[p] = []; });
 
             if(players.length > 0) {
                 deck = []; for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s });
@@ -174,29 +166,20 @@
             const name = input.value.trim().toUpperCase();
             if(!name || players.includes(name)) return;
             players.push(name);
-            putaMap[name] = []; // Lista nueva vacía
+            putaMap[name] = [];
             saveGameData();
             input.value = ''; renderChips(); input.focus();
         }
-        
         function removePlayer(name) {
             players = players.filter(p => p !== name);
             delete putaMap[name];
-            Object.keys(putaMap).forEach(key => { 
-                putaMap[key] = putaMap[key].filter(v => v !== name); 
-            });
+            Object.keys(putaMap).forEach(key => { putaMap[key] = putaMap[key].filter(v => v !== name); });
             saveGameData(); renderChips();
         }
-        
         function renderChips() { document.getElementById('chips-area').innerHTML = players.map(p => `<div class="chip" onclick="removePlayer('${p}')">${p} ✕</div>`).join(''); }
-        
         function startGame(isNew) {
             if(players.length < 2) return alert("Cargá al menos 2 jugadores.");
-            if(isNew) { 
-                putaMap = {}; 
-                players.forEach(p => putaMap[p] = []);
-                saveGameData(); 
-            }
+            if(isNew) { putaMap = {}; players.forEach(p => putaMap[p] = []); saveGameData(); }
             deck = []; for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s });
             shuffleDeck();
             document.getElementById('setup-screen').classList.add('hidden');
@@ -204,16 +187,7 @@
             currentPlayerIdx = Math.floor(Math.random() * players.length);
             updateInfo();
         }
-        
-        function resetGame() { 
-            if(confirm("¿Reiniciar todo?")) { 
-                putaMap = {}; 
-                players.forEach(p => putaMap[p] = []);
-                saveGameData(); 
-                document.getElementById('game-screen').classList.add('hidden'); 
-                document.getElementById('setup-screen').classList.remove('hidden'); 
-            } 
-        }
+        function resetGame() { if(confirm("¿Reiniciar todo?")) { putaMap = {}; players.forEach(p => putaMap[p] = []); saveGameData(); document.getElementById('game-screen').classList.add('hidden'); document.getElementById('setup-screen').classList.remove('hidden'); } }
         function shuffleDeck() { for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; } }
         function updateInfo() {
             document.getElementById('current-player-name').innerText = players[currentPlayerIdx];
@@ -223,6 +197,7 @@
             }
         }
         
+        // --- LOGICA DE CARTA MEJORADA (PAUSA TURNO) ---
         function drawCard() {
             if(isAnimating) return;
             if(deck.length === 0) { alert("¡Mazo nuevo!"); for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s }); shuffleDeck(); }
@@ -230,6 +205,7 @@
             const cardEl = document.getElementById('card-element');
             const cardData = deck.pop();
             cardEl.className = 'card zoom-out';
+            
             setTimeout(() => {
                 document.getElementById('card-back-face').classList.add('hidden');
                 const content = document.getElementById('card-content-face');
@@ -239,30 +215,45 @@
                 document.getElementById('rule-title').innerText = `${cardData.n}: ${reglas[cardData.n].t}`;
                 document.getElementById('rule-desc').innerText = reglas[cardData.n].d;
                 cardEl.className = 'card zoom-in';
+                
                 const currentPlayerName = players[currentPlayerIdx];
                 
-                if(cardData.n === 1) setTimeout(() => showChainResult(getGraphChain(currentPlayerName), "¡TE TOCÓ A VOS!"), 600);
-                if(cardData.n === 2) setTimeout(() => openLoserModal("🍺 CARTA 2: ELEGÍ QUIÉN TOMA"), 600);
-                if(cardData.n === 3) setTimeout(() => calculateTomanTodos(), 600);
-                if(cardData.n === 5) setTimeout(() => openPutaSelector(currentPlayerName), 600);
-                if(cardData.n === 10) activateDedito(currentPlayerIdx);
-                
+                // *** CONTROL DE FLUJO ***
+                // Cartas que PAUSAN el turno:
+                if(cardData.n === 2) {
+                    setTimeout(() => openLoserModal("🍺 CARTA 2: ELEGÍ QUIÉN TOMA", true), 600);
+                    // NO PASAMOS TURNO ACÁ. Se pasa cuando cierra el modal.
+                } 
+                else if(cardData.n === 5) {
+                    setTimeout(() => openPutaSelector(currentPlayerName), 600);
+                    // NO PASAMOS TURNO ACÁ.
+                } 
+                // Cartas AUTOMÁTICAS:
+                else {
+                    if(cardData.n === 1) setTimeout(() => showChainResult(getGraphChain(currentPlayerName), "¡TE TOCÓ A VOS!"), 600);
+                    if(cardData.n === 3) setTimeout(() => calculateTomanTodos(), 600);
+                    if(cardData.n === 10) activateDedito(currentPlayerIdx);
+                    
+                    // PASAMOS TURNO AUTOMÁTICO
+                    passTurn(); 
+                }
+
                 setTimeout(() => { isAnimating = false; }, 300);
             }, 200);
         }
+
         function passTurn() {
-            turnGlobal++; currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
+            turnGlobal++; 
+            currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
             setTimeout(() => {
-                document.getElementById('current-player-name').innerText = "Sigue: " + players[currentPlayerIdx]; updateInfo();
+                document.getElementById('current-player-name').innerText = "Sigue: " + players[currentPlayerIdx]; 
+                updateInfo();
                 if(deditoState.active) document.getElementById('dedito-float').classList.remove('hidden'); else document.getElementById('dedito-float').classList.add('hidden');
             }, 500);
         }
 
-        // --- LÓGICA DE CADENAS (RECURSIVA SIMPLE) ---
         function getGraphChain(loser) {
-            // Calcula todos los que caen si 'loser' toma
-            let affected = new Set();
-            let queue = [loser];
+            let affected = new Set(); let queue = [loser];
             while(queue.length > 0) {
                 let current = queue.shift();
                 if (!affected.has(current)) {
@@ -271,22 +262,22 @@
                     misPutas.forEach(p => queue.push(p));
                 }
             }
-            // Formatear resultado
             let result = Array.from(affected);
-            // Poner al perdedor primero
             result = result.filter(x => x !== loser);
             result.unshift(loser);
             return result;
         }
 
+        // --- MANEJO DE MODALES QUE PAUSAN EL JUEGO ---
+
         function openPutasModal() {
             const list = document.getElementById('modal-list'); 
             document.getElementById('modal-title').innerText = "MAPA DE PUTAS"; 
             document.getElementById('btn-cancel-modal').classList.remove('hidden');
-            
-            // Filtrar solo los que tienen putas
+            // Este botón es solo informativo, no pasa turno si se abre manual
+            document.getElementById('btn-cancel-modal').onclick = () => closeModal(false);
+
             const owners = Object.keys(putaMap).filter(k => putaMap[k] && putaMap[k].length > 0);
-            
             if(owners.length === 0) { 
                 list.innerHTML = "<div style='text-align:center; color:#888;'>Nadie tiene putas todavía.</div>"; 
             } else {
@@ -301,94 +292,48 @@
             document.getElementById('modal-select').classList.remove('hidden');
         }
 
-        function calculateTomanTodos() {
-            let drinks = {}; players.forEach(p => drinks[p] = 0);
-            players.forEach(p => { 
-                let chain = getGraphChain(p); 
-                chain.forEach(victim => drinks[victim]++); 
-            });
-            let html = ""; let sorted = Object.keys(drinks).sort((a,b) => drinks[b] - drinks[a]);
-            sorted.forEach(p => { html += `<div class="result-row"><span>${p}</span><span class="drink-badge">${drinks[p]} 🍺</span></div>`; });
-            document.getElementById('res-title').innerText = "TOMAN TODOS (ACUMULADO)"; 
-            document.getElementById('chain-display').innerHTML = html; 
-            document.getElementById('modal-result').classList.remove('hidden');
-        }
-
-        function showChainResult(chain, title) {
-            let html = ""; 
-            if(chain.length === 1) {
-                html = `<div class="chain-text" style="color:white; font-size:30px; font-weight:bold;">${chain[0]}</div>`; 
-            } else { 
-                let loser = chain[0]; 
-                let others = chain.slice(1); 
-                html = `<div class="chain-text"><span style="color:white; font-size:24px; font-weight:bold;">${loser}</span><br><span style="font-size:14px; color:#aaa;">(Arrastra a sus putas)</span><br><br>👇<br>${others.map(n => `<b style="color:#FF453A">${n}</b>`).join('<br>')}</div>`; 
-            }
-            document.getElementById('res-title').innerText = title; 
-            document.getElementById('chain-display').innerHTML = html; 
-            document.getElementById('modal-result').classList.remove('hidden');
-        }
-
-        function activateDedito(idx) { deditoState = { active: true, ownerIdx: idx, startTurn: turnGlobal }; }
-        function triggerDedito() { deditoState.active = false; document.getElementById('dedito-float').classList.add('hidden'); openLoserModal("👆 DEDITO: ¿Quién fue el último?"); }
-
         function openPutaSelector(owner) {
             const list = document.getElementById('modal-list'); 
             document.getElementById('modal-title').innerText = `${owner}, elegí tu Puta:`; 
-            document.getElementById('btn-cancel-modal').classList.add('hidden');
-            
-            // LISTA: Todos los que no sean yo, y que no sean ya mis putas
+            // Si cancela, pasamos turno igual para no trabar
+            document.getElementById('btn-cancel-modal').classList.remove('hidden');
+            document.getElementById('btn-cancel-modal').onclick = () => closeModal(true);
+
             const myPutas = putaMap[owner] || [];
             const candidates = players.filter(p => p !== owner && !myPutas.includes(p));
             
             if(candidates.length === 0) { 
                 list.innerHTML = "<div style='text-align:center; padding:20px;'>Ya tenés a todos de putas.</div>"; 
-                setTimeout(() => document.getElementById('modal-select').classList.add('hidden'), 2000); 
+                setTimeout(() => closeModal(true), 2000); // Cierra y pasa turno
                 return; 
             }
             list.innerHTML = candidates.map(p => `<button class="btn btn-primary" style="background:#333;" onclick="setPuta('${owner}', '${p}')">${p}</button>`).join(''); 
             document.getElementById('modal-select').classList.remove('hidden');
         }
 
-        // --- LÓGICA CORE: AGREGAR PUTA (SEGÚN TU EXPLICACIÓN) ---
         function setPuta(owner, victim) {
-            // 1. OBTENER LISTAS
-            let listaOwner = putaMap[owner];
             let listaVictim = putaMap[victim];
-
-            // 2. CHEQUEAR REBELIÓN DIRECTA
-            // ¿Está el dueño en la lista de la víctima?
             if (listaVictim.includes(owner)) {
-                // SÍ: Borrar al dueño de esa lista (Romper vínculo)
                 putaMap[victim] = listaVictim.filter(nombre => nombre !== owner);
-                
-                // NO agregar a la víctima a la lista del dueño
-                // El resto de las listas NO SE TOCAN
-                
                 saveGameData();
                 document.getElementById('modal-select').classList.add('hidden');
-                alert(`⚔️ ¡ANULADOS!\n\n${victim} te tenía de puta. Al elegirlo, se rompió el lazo entre ustedes.\n\n(El resto de las putas quedaron igual).`);
+                alert(`⚔️ ¡ANULADOS!\n\n${victim} te tenía de puta. Al elegirlo, se rompió el lazo.`);
+                passTurn(); // <--- IMPORTANTE: PASE DE TURNO
                 return;
             }
-
-            // 3. AGREGAR NORMAL (Si no hubo rebelión)
-            // Chequeo de seguridad indirecta (Bucle infinito A->B->C->A)
-            // Si querés que TAMBIÉN se rompan bucles largos, avisame y lo descomento.
-            // Por ahora solo impedimos que se forme el bucle, pero no rompemos nada.
             if (findPath(victim, owner)) {
                 document.getElementById('modal-select').classList.add('hidden');
                 alert("⛔️ Movimiento ilegal: Se formaría un círculo vicioso infinito.");
+                passTurn(); // <--- IMPORTANTE: PASE DE TURNO
                 return;
             }
-
-            listaOwner.push(victim);
+            putaMap[owner].push(victim);
             saveGameData();
             document.getElementById('modal-select').classList.add('hidden');
             alert(`🔗 ¡AGREGADA!\n\n${owner} sumó a ${victim}.`);
-            passTurn();
-
+            passTurn(); // <--- IMPORTANTE: PASE DE TURNO
         }
         
-        // BUSCADOR DE CAMINOS (Para evitar bucles infinitos)
         function findPath(start, target, path = [], visited = new Set()) {
             path.push(start); visited.add(start);
             if (start === target) return path;
@@ -402,18 +347,65 @@
             return null;
         }
 
-        function openLoserModal(title = "😡 ¿Quién perdió?") { document.getElementById('modal-title').innerText = title; document.getElementById('btn-cancel-modal').classList.remove('hidden'); const list = document.getElementById('modal-list'); list.innerHTML = players.map(p => `<button class="btn btn-danger" onclick="manualLoser('${p}')">${p}</button>`).join(''); document.getElementById('modal-select').classList.remove('hidden'); }
-        function manualLoser(loser) { document.getElementById('modal-select').classList.add('hidden'); showChainResult(getGraphChain(loser), "RESULTADO"); passTurn();
-}
-        function closeModal() { document.getElementById('modal-select').classList.add('hidden'); }
+        function openLoserModal(title = "😡 ¿Quién perdió?", shouldPassTurn = false) { 
+            document.getElementById('modal-title').innerText = title; 
+            document.getElementById('btn-cancel-modal').classList.remove('hidden'); 
+            
+            // Si es la carta 2, debe pasar turno al cerrar/elegir
+            document.getElementById('btn-cancel-modal').onclick = () => closeModal(shouldPassTurn);
+
+            const list = document.getElementById('modal-list'); 
+            list.innerHTML = players.map(p => `<button class="btn btn-danger" onclick="manualLoser('${p}', ${shouldPassTurn})">${p}</button>`).join(''); 
+            document.getElementById('modal-select').classList.remove('hidden'); 
+        }
+
+        function manualLoser(loser, shouldPassTurn = false) { 
+            document.getElementById('modal-select').classList.add('hidden'); 
+            showChainResult(getGraphChain(loser), "RESULTADO"); 
+            // Guardamos el estado de si hay que pasar turno en el botón del siguiente modal
+            document.getElementById('modal-result').dataset.pass = shouldPassTurn;
+        }
+
+        function calculateTomanTodos() {
+            let drinks = {}; players.forEach(p => drinks[p] = 0);
+            players.forEach(p => { 
+                let chain = getGraphChain(p); 
+                chain.forEach(victim => drinks[victim]++); 
+            });
+            let html = ""; let sorted = Object.keys(drinks).sort((a,b) => drinks[b] - drinks[a]);
+            sorted.forEach(p => { html += `<div class="result-row"><span>${p}</span><span class="drink-badge">${drinks[p]} 🍺</span></div>`; });
+            document.getElementById('res-title').innerText = "TOMAN TODOS (ACUMULADO)"; 
+            document.getElementById('chain-display').innerHTML = html; 
+            document.getElementById('modal-result').classList.remove('hidden');
+            // Toman todos es automático, no requiere pase manual extra (ya se hizo en drawCard)
+            document.getElementById('modal-result').dataset.pass = "false";
+        }
+
+        function showChainResult(chain, title) {
+            let html = ""; 
+            if(chain.length === 1) { html = `<div class="chain-text" style="color:white; font-size:30px; font-weight:bold;">${chain[0]}</div>`; } 
+            else { let loser = chain[0]; let others = chain.slice(1); html = `<div class="chain-text"><span style="color:white; font-size:24px; font-weight:bold;">${loser}</span><br><span style="font-size:14px; color:#aaa;">(Arrastra a sus putas)</span><br><br>👇<br>${others.map(n => `<b style="color:#FF453A">${n}</b>`).join('<br>')}</div>`; }
+            document.getElementById('res-title').innerText = title; 
+            document.getElementById('chain-display').innerHTML = html; 
+            document.getElementById('modal-result').classList.remove('hidden');
+        }
+
+        function closeResultModal() {
+            document.getElementById('modal-result').classList.add('hidden');
+            // Chequear si venimos de una carta que pausó el turno (2 o Manual)
+            if (document.getElementById('modal-result').dataset.pass === "true") {
+                passTurn();
+            }
+        }
+
+        function closeModal(shouldPass) { 
+            document.getElementById('modal-select').classList.add('hidden'); 
+            if(shouldPass) passTurn();
+        }
 
         // --- REGISTRO SW ---
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW Ok', reg))
-                    .catch(err => console.log('SW Fail', err));
-            });
+            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); });
         }
     </script>
 </body>
