@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>La Puta 8.3</title>
+    <title>La Puta 8.4</title>
     <style>
         :root { --primary: #0A84FF; --danger: #FF453A; --purple: #BF5AF2; --bg: #000000; --card-bg: #1C1C1E; --text: #FFFFFF; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
@@ -53,23 +53,23 @@
         .puta-card { background: #2C2C2E; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--purple); }
         .puta-name { font-weight: bold; font-size: 17px; display: block; margin-bottom: 5px; }
         .sub-putas { font-size: 14px; color: #aaa; padding-left: 10px; }
-        #debug-log { font-family: monospace; color: #555; font-size: 10px; margin-top: 10px; height: 60px; overflow-y: scroll; background: #111; padding: 5px; border: 1px solid #333; text-align: left; }
+        #version-check { text-align: center; font-size: 10px; color: #444; margin-top: 10px; font-family: monospace; }
     </style>
 </head>
 <body>
     <div id="setup-screen">
-        <h1>LA PUTA 8.3</h1>
-        <p style="color: #666; font-size: 14px;">Sync Fix + Logs</p>
+        <h1>LA PUTA 8.4</h1>
+        <p style="color: #666; font-size: 14px;">Sync Visual Correcto</p>
         <input type="text" id="input-player" placeholder="Nombre jugador..." onkeypress="handleEnter(event)">
         <button class="btn btn-primary" onclick="addPlayer()">AGREGAR JUGADOR</button>
         <div class="chips-container" id="chips-area"></div>
         <button class="btn btn-primary" style="background-color: #30D158; margin-top: auto;" onclick="startGame(true)">¡JUGAR / REINICIAR!</button>
-        <div style="font-size:10px; color:#444; margin-top:10px;">V: 8.3</div>
+        <div id="version-check">VERSIÓN: 8.4 (ACTIVA)</div>
     </div>
 
     <div id="game-screen" class="hidden">
         <div class="header-row">
-            <div style="font-weight:bold; color: #333;">V 8.3</div>
+            <div style="font-weight:bold; color: #333;">V 8.4</div>
             <div class="reset-btn" onclick="resetGame()">✕</div>
         </div>
         <div class="top-info">
@@ -94,7 +94,6 @@
             <button class="btn btn-danger" style="width: 60%;" onclick="openLoserModal()">😡 ¡PERDIÓ!</button>
         </div>
         <div style="text-align: center; font-size: 12px; color: #555; margin-top: 5px;" id="deck-status"></div>
-        <div id="debug-log">Bitácora de juego...</div>
     </div>
 
     <div id="dedito-float" class="hidden" onclick="triggerDedito()">👆</div>
@@ -123,8 +122,8 @@
 
     <script>
         // CONFIG
-        const DB_KEY_PLAYERS = 'laPutaPlayers_v83';
-        const DB_KEY_MAP = 'laPutaMap_v83';
+        const DB_KEY_PLAYERS = 'laPutaPlayers_v84';
+        const DB_KEY_MAP = 'laPutaMap_v84';
 
         const suits = [{ i: '🟡', c: 'suit-oros' }, { i: '🍷', c: 'suit-copas' }, { i: '⚔️', c: 'suit-espadas' }, { i: '🌿', c: 'suit-bastos' }];
         const reglas = {
@@ -143,11 +142,6 @@
         };
 
         let players = [], deck = [], currentPlayerIdx = 0, turnGlobal = 0, putaMap = {}, deditoState = { active: false, ownerIdx: -1, startTurn: 0 }, isAnimating = false;
-
-        function log(msg) {
-            const el = document.getElementById('debug-log');
-            el.innerHTML = `> ${msg}<br>${el.innerHTML}`;
-        }
 
         window.onload = function() {
             if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(regs => { for(let r of regs) r.unregister(); });
@@ -202,13 +196,11 @@
             document.getElementById('game-screen').classList.remove('hidden');
             currentPlayerIdx = Math.floor(Math.random() * players.length);
             updateInfo();
-            log("Juego iniciado. Turno de: " + players[currentPlayerIdx]);
         }
         function resetGame() { if(confirm("¿Reiniciar todo?")) { putaMap = {}; players.forEach(p => putaMap[p] = []); saveGameData(); document.getElementById('game-screen').classList.add('hidden'); document.getElementById('setup-screen').classList.remove('hidden'); } }
         function shuffleDeck() { for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; } }
         
         function updateInfo() {
-            // ACTUALIZACIÓN VISUAL INSTANTÁNEA
             document.getElementById('current-player-name').innerText = players[currentPlayerIdx];
             document.getElementById('deck-status').innerText = `${deck.length} cartas restantes`;
             if(deditoState.active && turnGlobal > deditoState.startTurn && currentPlayerIdx === deditoState.ownerIdx) {
@@ -224,9 +216,9 @@
             const cardData = deck.pop();
             cardEl.className = 'card zoom-out';
             
-            // OBTENER JUGADOR ACTUAL FRESCO
-            const currentPlayerName = players[currentPlayerIdx];
-            log(`${currentPlayerName} sacó un ${cardData.n}`);
+            // ACA CAPTURAMOS EL JUGADOR ACTUAL "CONGELADO"
+            // Esta variable no cambia aunque cambie el índice después
+            const cardOwner = players[currentPlayerIdx];
 
             setTimeout(() => {
                 document.getElementById('card-back-face').classList.add('hidden');
@@ -238,23 +230,24 @@
                 document.getElementById('rule-desc').innerText = reglas[cardData.n].d;
                 cardEl.className = 'card zoom-in';
                 
-                // --- LÓGICA DE CARTAS ---
+                // LÓGICA DE CARTAS USANDO AL DUEÑO DE LA CARTA (cardOwner)
                 if(cardData.n === 2) {
-                    setTimeout(() => openLoserModal(`🍺 ${currentPlayerName} ELIGE QUIÉN TOMA`, true), 600);
+                    setTimeout(() => openLoserModal(`🍺 ${cardOwner} ELIGE QUIÉN TOMA`, true), 600);
                 } 
                 else if(cardData.n === 5) {
-                    // Pasamos el nombre FRESCO para asegurar
-                    setTimeout(() => openPutaSelector(players[currentPlayerIdx]), 600);
+                    setTimeout(() => openPutaSelector(cardOwner), 600);
                 }
                 else if(cardData.n === 10) {
                     activateDedito(currentPlayerIdx);
                     setTimeout(() => document.getElementById('modal-info').classList.remove('hidden'), 600);
                 }
                 else {
-                    if(cardData.n === 1) setTimeout(() => showChainResult(getGraphChain(currentPlayerName), "¡TE TOCÓ A VOS!"), 600);
+                    if(cardData.n === 1) setTimeout(() => showChainResult(getGraphChain(cardOwner), "¡TE TOCÓ A VOS!"), 600);
                     if(cardData.n === 3) setTimeout(() => calculateTomanTodos(), 600);
                     
-                    passTurn(); 
+                    // Solo si NO es interactiva, pasamos turno automáticamente
+                    // Pero ojo: lo hacemos con un delay visual para que se entienda que terminó
+                    setTimeout(() => passTurn(), 1500); 
                 }
 
                 setTimeout(() => { isAnimating = false; }, 300);
@@ -264,8 +257,6 @@
         function passTurn() {
             turnGlobal++; 
             currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
-            log(`Pasando turno a: ${players[currentPlayerIdx]}`);
-            // Actualización INMEDIATA, sin setTimeout
             updateInfo();
             if(deditoState.active) document.getElementById('dedito-float').classList.remove('hidden'); else document.getElementById('dedito-float').classList.add('hidden');
         }
@@ -324,18 +315,10 @@
         }
 
         function openPutaSelector(owner) {
-            log(`Abriendo selector para: ${owner}`); // DEBUG
             const list = document.getElementById('modal-list'); 
             document.getElementById('modal-title').innerText = `${owner}, elegí tu Puta:`; 
             document.getElementById('btn-cancel-modal').classList.remove('hidden');
             document.getElementById('btn-cancel-modal').onclick = () => closeModal(true);
-
-            // Asegurar que owner es el correcto
-            if(owner !== players[currentPlayerIdx]) {
-                log(`ERROR CRÍTICO: Owner ${owner} != Actual ${players[currentPlayerIdx]}`);
-                owner = players[currentPlayerIdx]; // Autocorrección
-                document.getElementById('modal-title').innerText = `${owner}, elegí tu Puta:`;
-            }
 
             const myPutas = putaMap[owner] || [];
             const candidates = players.filter(p => p !== owner && !myPutas.includes(p));
@@ -350,7 +333,6 @@
         }
 
         function setPuta(owner, victim) {
-            log(`${owner} eligió a ${victim}`);
             let listaVictim = putaMap[victim];
             if (listaVictim.includes(owner)) {
                 putaMap[victim] = listaVictim.filter(nombre => nombre !== owner);
