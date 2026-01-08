@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>La Puta 8.8</title>
+    <title>La Puta 8.9</title>
     <style>
         :root { --primary: #0A84FF; --danger: #FF453A; --purple: #BF5AF2; --bg: #000000; --card-bg: #1C1C1E; --text: #FFFFFF; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
@@ -30,7 +30,8 @@
         
         .top-info { text-align: center; margin-bottom: 10px; margin-top: 20px; }
         .turn-label { color: #888; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
-        .player-name { font-size: 36px; font-weight: 900; color: var(--primary); margin-top: 0px; line-height: 1.1; }
+        .player-name { font-size: 36px; font-weight: 900; color: var(--primary); margin-top: 0px; line-height: 1.1; transition: color 0.3s; }
+        .player-name.waiting { color: #555; } /* Color gris para espera */
         .next-player { font-size: 14px; color: #666; margin-top: 5px; font-weight: 500; }
         
         .card-container { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; }
@@ -62,25 +63,25 @@
 </head>
 <body>
     <div id="setup-screen">
-        <h1>LA PUTA 8.8</h1>
-        <p style="color: #666; font-size: 14px;">Sync Visual Perfecta</p>
+        <h1>LA PUTA 8.9</h1>
+        <p style="color: #666; font-size: 14px;">Sync Acción</p>
         <input type="text" id="input-player" placeholder="Nombre jugador..." onkeypress="handleEnter(event)">
         <button class="btn btn-primary" onclick="addPlayer()">AGREGAR JUGADOR</button>
         <div class="chips-container" id="chips-area"></div>
         <button class="btn btn-primary" style="background-color: #30D158; margin-top: auto;" onclick="startGame(true)">¡JUGAR / REINICIAR!</button>
-        <div id="version-check">VERSIÓN: 8.8 (SYNC LOCK)</div>
+        <div id="version-check">VERSIÓN: 8.9 (ACTUALIZAR AL TOCAR)</div>
     </div>
 
     <div id="game-screen" class="hidden">
         <div class="header-row">
-            <div style="font-weight:bold; color: #333;">V 8.8</div>
+            <div style="font-weight:bold; color: #333;">V 8.9</div>
             <div class="reset-btn" onclick="resetGame()">✕</div>
         </div>
         
         <div class="top-info">
-            <div class="turn-label">TURNO DE:</div>
-            <div class="player-name" id="current-player-name">...</div>
-            <div class="next-player" id="next-player-name">LUEGO VA: ...</div>
+            <div class="turn-label" id="turn-label">ESPERANDO...</div>
+            <div class="player-name" id="current-player-name">TOCÁ EL MAZO</div>
+            <div class="next-player" id="next-player-name"></div>
         </div>
 
         <div class="card-container" onclick="drawCard()">
@@ -129,8 +130,8 @@
 
     <script>
         // CONFIG
-        const DB_KEY_PLAYERS = 'laPutaPlayers_v88';
-        const DB_KEY_MAP = 'laPutaMap_v88';
+        const DB_KEY_PLAYERS = 'laPutaPlayers_v89';
+        const DB_KEY_MAP = 'laPutaMap_v89';
 
         const suits = [{ i: '🟡', c: 'suit-oros' }, { i: '🍷', c: 'suit-copas' }, { i: '⚔️', c: 'suit-espadas' }, { i: '🌿', c: 'suit-bastos' }];
         const reglas = {
@@ -168,8 +169,8 @@
                 shuffleDeck();
                 document.getElementById('setup-screen').classList.add('hidden');
                 document.getElementById('game-screen').classList.remove('hidden');
-                currentPlayerIdx = 0; // Arranca el 1ro
-                updateInfo();
+                currentPlayerIdx = 0; 
+                showIdleState(); // Mostrar estado neutro al cargar
             }
         };
 
@@ -204,26 +205,36 @@
             document.getElementById('setup-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
             
-            // RESET Y AUTO-START
             currentPlayerIdx = 0;
-            updateInfo();
-            setTimeout(() => { drawCard(); }, 700); // Saca la primera sola
+            updateUIForActivePlayer(); // El primero no espera, arranca con nombre
+            setTimeout(() => { drawCard(); }, 700); 
         }
 
         function resetGame() { if(confirm("¿Reiniciar todo?")) { putaMap = {}; players.forEach(p => putaMap[p] = []); saveGameData(); document.getElementById('game-screen').classList.add('hidden'); document.getElementById('setup-screen').classList.remove('hidden'); } }
         function shuffleDeck() { for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; } }
         
         // --- VISUALIZACIÓN ---
-        function updateInfo() {
-            // Se llama SOLO cuando cambia el turno
-            document.getElementById('current-player-name').innerText = players[currentPlayerIdx];
-            let nextIdx = (currentPlayerIdx + 1) % players.length;
-            document.getElementById('next-player-name').innerText = "LUEGO VA: " + players[nextIdx];
+        function showIdleState() {
+            // Estado entre turnos
+            document.getElementById('turn-label').innerText = "SIGUIENTE TURNO:";
+            document.getElementById('current-player-name').innerText = "TOCÁ EL MAZO";
+            document.getElementById('current-player-name').classList.add('waiting');
+            document.getElementById('next-player-name').innerText = ""; 
             document.getElementById('deck-status').innerText = `${deck.length} cartas restantes`;
+        }
+
+        function updateUIForActivePlayer() {
+            // Estado activo (cuando tocan el mazo)
+            const activePlayer = players[currentPlayerIdx];
+            const nextIdx = (currentPlayerIdx + 1) % players.length;
             
-            // Check dedito
+            document.getElementById('turn-label').innerText = "JUGANDO AHORA:";
+            document.getElementById('current-player-name').innerText = activePlayer;
+            document.getElementById('current-player-name').classList.remove('waiting');
+            document.getElementById('next-player-name').innerText = "LUEGO VA: " + players[nextIdx];
+            
             if(deditoState.active && turnGlobal > deditoState.startTurn && currentPlayerIdx === deditoState.ownerIdx) {
-                deditoState.active = false; document.getElementById('dedito-float').classList.add('hidden'); alert(`⏳ Se venció el Dedito de ${players[currentPlayerIdx]}`);
+                deditoState.active = false; document.getElementById('dedito-float').classList.add('hidden'); alert(`⏳ Se venció el Dedito de ${activePlayer}`);
             }
         }
         
@@ -231,15 +242,15 @@
             if(isAnimating) return;
             if(deck.length === 0) { alert("¡Mazo nuevo!"); for(let s of suits) for(let i=1; i<=12; i++) deck.push({ n: i, s: s }); shuffleDeck(); }
             isAnimating = true;
+            
+            // 1. ACTUALIZAR UI AL MOMENTO DEL CLICK (SYNC CORRECTA)
+            updateUIForActivePlayer();
+
             const cardEl = document.getElementById('card-element');
             const cardData = deck.pop();
             cardEl.className = 'card zoom-out';
             
-            // CAPTURAMOS EL PROPIETARIO PARA QUE NO HAYA DUDAS
             const cardOwner = players[currentPlayerIdx];
-            
-            // FORZAMOS EL NOMBRE EN PANTALLA (Por si acaso hubo lag)
-            document.getElementById('current-player-name').innerText = cardOwner;
 
             setTimeout(() => {
                 document.getElementById('card-back-face').classList.add('hidden');
@@ -251,7 +262,7 @@
                 document.getElementById('rule-desc').innerText = reglas[cardData.n].d;
                 cardEl.className = 'card zoom-in';
                 
-                // --- LÓGICA DE CARTAS ---
+                // LÓGICA
                 if(cardData.n === 2) {
                     setTimeout(() => openLoserModal(`🍺 ${cardOwner} ELIGE QUIÉN TOMA`, true), 600);
                 } 
@@ -263,10 +274,8 @@
                     setTimeout(() => document.getElementById('modal-info').classList.remove('hidden'), 600);
                 }
                 else {
-                    // CARTAS AUTOMÁTICAS
                     if(cardData.n === 1) setTimeout(() => showChainResult(getGraphChain(cardOwner), "¡TE TOCÓ A VOS!"), 600);
                     if(cardData.n === 3) setTimeout(() => calculateTomanTodos(), 600);
-                    
                     setTimeout(() => passTurn(), 1500); 
                 }
 
@@ -277,8 +286,10 @@
         function passTurn() {
             turnGlobal++; 
             currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
-            // RECIEN ACÁ ACTUALIZAMOS EL TEXTO DE ARRIBA
-            updateInfo(); 
+            
+            // MOSTRAR ESTADO NEUTRO ("TOCA EL MAZO")
+            showIdleState();
+            
             if(deditoState.active) document.getElementById('dedito-float').classList.remove('hidden'); else document.getElementById('dedito-float').classList.add('hidden');
         }
 
