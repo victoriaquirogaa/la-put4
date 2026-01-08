@@ -247,7 +247,7 @@
                 if(cardData.n === 5) setTimeout(() => openPutaSelector(currentPlayerName), 600);
                 if(cardData.n === 10) activateDedito(currentPlayerIdx);
                 
-                passTurn(); setTimeout(() => { isAnimating = false; }, 300);
+                setTimeout(() => { isAnimating = false; }, 300);
             }, 200);
         }
         function passTurn() {
@@ -384,6 +384,8 @@
             saveGameData();
             document.getElementById('modal-select').classList.add('hidden');
             alert(`🔗 ¡AGREGADA!\n\n${owner} sumó a ${victim}.`);
+            passTurn();
+
         }
         
         // BUSCADOR DE CAMINOS (Para evitar bucles infinitos)
@@ -401,7 +403,8 @@
         }
 
         function openLoserModal(title = "😡 ¿Quién perdió?") { document.getElementById('modal-title').innerText = title; document.getElementById('btn-cancel-modal').classList.remove('hidden'); const list = document.getElementById('modal-list'); list.innerHTML = players.map(p => `<button class="btn btn-danger" onclick="manualLoser('${p}')">${p}</button>`).join(''); document.getElementById('modal-select').classList.remove('hidden'); }
-        function manualLoser(loser) { document.getElementById('modal-select').classList.add('hidden'); showChainResult(getGraphChain(loser), "RESULTADO"); }
+        function manualLoser(loser) { document.getElementById('modal-select').classList.add('hidden'); showChainResult(getGraphChain(loser), "RESULTADO"); passTurn();
+}
         function closeModal() { document.getElementById('modal-select').classList.add('hidden'); }
 
         // --- REGISTRO SW ---
